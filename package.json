@@ -1,0 +1,14 @@
+{
+  "name": "btl-fullstack",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev",
+    "preview": "npm --prefix frontend run preview",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "dotnet build BtlFullstack.sln"
+  },
+  "dependencies": {
+    "playwright": "^1.61.1"
+  }
+}

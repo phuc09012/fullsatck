@@ -1,0 +1,93 @@
+services:
+  catalogservice:
+    build:
+      context: .
+      dockerfile: src/CatalogService/Dockerfile
+    container_name: library-catalogservice
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__CatalogDb: Server=host.docker.internal,1433;Database=CatalogDb;User Id=sa;Password=Your_password123;TrustServerCertificate=True;Encrypt=False
+      Jwt__Issuer: LibraryAuth
+      Jwt__Audience: LibraryUsers
+      Jwt__Key: ChangeThisKeyToSomethingAtLeast32CharsLong!
+      InternalApi__Key: LibraryInternalSecretChangeMe!
+      IntegrationEvents__Subscribers__book.availability.changed__0: http://circulationservice:8080/integration/events/book-availability-changed
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5001:8080"
+
+  circulationservice:
+    build:
+      context: .
+      dockerfile: src/CirculationService/Dockerfile
+    container_name: library-circulationservice
+    depends_on:
+      - catalogservice
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__CirculationDb: Server=host.docker.internal,1433;Database=CirculationDb;User Id=sa;Password=Your_password123;TrustServerCertificate=True;Encrypt=False
+      Jwt__Issuer: LibraryAuth
+      Jwt__Audience: LibraryUsers
+      Jwt__Key: ChangeThisKeyToSomethingAtLeast32CharsLong!
+      InternalApi__Key: LibraryInternalSecretChangeMe!
+      CatalogService__BaseUrl: http://catalogservice:8080
+      IdentityService__BaseUrl: http://identityreportservice:8080
+      IntegrationEvents__Subscribers__book.borrowed__0: http://identityreportservice:8080/integration/events/book-borrowed
+      IntegrationEvents__Subscribers__book.returned__0: http://identityreportservice:8080/integration/events/book-returned
+      IntegrationEvents__Subscribers__fine.paid__0: http://identityreportservice:8080/integration/events/fine-paid
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5002:8080"
+
+  identityreportservice:
+    build:
+      context: .
+      dockerfile: src/IdentityReportService/Dockerfile
+    container_name: library-identityreportservice
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__IdentityDb: Server=host.docker.internal,1433;Database=IdentityDb;User Id=sa;Password=Your_password123;TrustServerCertificate=True;Encrypt=False
+      Jwt__Issuer: LibraryAuth
+      Jwt__Audience: LibraryUsers
+      Jwt__Key: ChangeThisKeyToSomethingAtLeast32CharsLong!
+      Jwt__ExpiryMinutes: 480
+      InternalApi__Key: LibraryInternalSecretChangeMe!
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5003:8080"
+
+  apigateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/Dockerfile
+    container_name: library-apigateway
+    depends_on:
+      - catalogservice
+      - circulationservice
+      - identityreportservice
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      UseDockerHosts: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5000:8080"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: library-frontend
+    depends_on:
+      - apigateway
+    ports:
+      - "4173:80"
